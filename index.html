@@ -1,0 +1,268 @@
+<title>Codzienny plan zdrowia</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one narrow phone column — date header, goals strip, three timed lists, confirmation card, streak + 30-day calendar, baseline labs, footnote. */
+:root {
+  --bg: #f3f6f5;
+  --surface: #ffffff;
+  --ink: #15211f;
+  --muted: #5a6b68;
+  --line: #d9e3e0;
+  --accent: #0f7a66;
+  --accent-soft: #e0f1ec;
+  --warn: #a8551b;
+  --warn-soft: #fbeee3;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1615; --surface: #172220; --ink: #e6efec; --muted: #94a8a3; --line: #2a3a37;
+    --accent: #4cc7aa; --accent-soft: #173a33; --warn: #f0a26a; --warn-soft: #3a2619;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1615; --surface: #172220; --ink: #e6efec; --muted: #94a8a3; --line: #2a3a37;
+  --accent: #4cc7aa; --accent-soft: #173a33; --warn: #f0a26a; --warn-soft: #3a2619;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { margin: 0; text-wrap: balance; }
+h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+header { display: flex; flex-direction: column; gap: 2px; }
+.weekday { font-size: 1.9rem; font-weight: 700; line-height: 1.15; text-transform: capitalize; }
+.fulldate { color: var(--muted); }
+
+.goals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.goal .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.goal .val { font-weight: 700; font-size: 1rem; line-height: 1.25; font-family: var(--font-body); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.goal .sub { font-size: 0.78rem; color: var(--muted); }
+
+section { display: flex; flex-direction: column; gap: 10px; }
+ul.plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+ul.plan li { padding: 11px 14px; display: flex; gap: 12px; align-items: baseline; }
+ul.plan li + li { border-top: 1px solid var(--line); }
+ul.plan li::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+ul.plan .hint { color: var(--muted); font-size: 0.86rem; }
+
+.confirm { background: var(--accent-soft); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.confirm label { display: flex; gap: 12px; align-items: center; cursor: pointer; font-weight: 600; }
+.confirm input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; margin: 0; cursor: pointer; }
+.confirm input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.stamp { font-size: 0.86rem; color: var(--muted); padding-left: 34px; }
+.stamp.done { color: var(--accent); }
+.nostore { font-size: 0.84rem; color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 8px 10px; }
+
+.streak { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.streak .big { font-size: 2.2rem; font-weight: 700; line-height: 1; color: var(--accent); }
+.streak .txt { color: var(--muted); }
+.cal { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal .wd { text-align: center; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cal .d { aspect-ratio: 1; max-width: 100%; border-radius: 7px; display: grid; place-items: center; font-size: 0.82rem; border: 1px solid var(--line); color: var(--muted); }
+.cal .d.pad { border-color: transparent; }
+.cal .d.ok { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+.cal .d.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.legend { display: flex; gap: 16px; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); }
+.legend i.ok { background: var(--accent); border-color: var(--accent); }
+
+.labs { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 0.9rem; }
+.labs th, .labs td { padding: 8px 12px; text-align: left; border-top: 1px solid var(--line); }
+.labs thead th { border-top: none; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.labs td.v { text-align: right; font-weight: 700; }
+.labs td.r { color: var(--muted); text-align: right; }
+.flag { color: var(--warn); }
+.meta { font-size: 0.84rem; color: var(--muted); }
+
+footer { font-size: 0.8rem; color: var(--muted); text-align: center; border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 360px) { .goals { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .cal .d { transition: background-color .2s; } }
+</style>
+
+<main>
+  <header>
+    <div class="weekday" id="weekday">—</div>
+    <div class="fulldate" id="fulldate">—</div>
+  </header>
+
+  <div class="goals" aria-label="Cele">
+    <div class="goal"><span class="lbl">Waga</span><span class="val num">81–85 kg</span><span class="sub">start: 90 kg</span></div>
+    <div class="goal"><span class="lbl">Pas</span><span class="val num">&lt; 94 cm</span><span class="sub">potem ok. 89 · start 96</span></div>
+    <div class="goal"><span class="lbl">Kontrola</span><span class="val num">23.01.2027</span><span class="sub" id="countdown">lipidogram + glukoza</span></div>
+  </div>
+
+  <section>
+    <h2>Codziennie</h2>
+    <ul class="plan">
+      <li>Bez słodyczy, słodkich napojów i białego pieczywa</li>
+      <li>Białko i warzywa w każdym posiłku</li>
+      <li>Mniej tłustego mięsa, wędlin, masła i serów</li>
+      <li><span>Błonnik: owsianka, strączki, orzechy</span></li>
+      <li><span>Utrzymaj ok. <span class="num">9500</span> kroków</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>W tygodniu</h2>
+    <ul class="plan">
+      <li><span>2–3 intensywniejsze sesje po 30–40 min <span class="hint">· tętno ok. <span class="num">130–150</span></span></span></li>
+      <li>2 treningi siłowe</li>
+      <li>Ryba 2 razy</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Okresowo</h2>
+    <ul class="plan">
+      <li><span>Pomiar pasa co 2–4 tygodnie, rano</span></li>
+      <li><span>Do omówienia z lekarzem: <span class="hint">HbA1c, powtórka glukozy, TSH, Lp(a), pomiar ciśnienia, wywiad rodzinny</span></span></li>
+    </ul>
+  </section>
+
+  <div class="confirm">
+    <label for="ack"><input type="checkbox" id="ack"> Zapoznałem się z dzisiejszym przypomnieniem</label>
+    <div class="stamp" id="stamp">Jeszcze nie potwierdzono.</div>
+    <div class="nostore" id="nostore" hidden>Pamięć przeglądarki jest niedostępna. Dzisiejsze potwierdzenie działa, ale historia nie zostanie zapisana.</div>
+  </div>
+
+  <section>
+    <h2>Seria i ostatnie 30 dni</h2>
+    <div class="streak"><span class="big num" id="streak">0</span><span class="txt" id="streakTxt">dni z rzędu</span></div>
+    <div class="cal" id="cal" aria-label="Kalendarz potwierdzeń z ostatnich 30 dni"></div>
+    <div class="legend"><span><i class="ok"></i>potwierdzone</span><span><i></i>brak potwierdzenia</span><span id="count30"></span></div>
+  </section>
+
+  <section>
+    <h2>Punkt wyjścia · badania 23.10.2026</h2>
+    <table class="labs">
+      <thead><tr><th>Parametr</th><th style="text-align:right">Wynik</th><th style="text-align:right">Typowa norma</th></tr></thead>
+      <tbody>
+        <tr><td>LDL</td><td class="v num flag">152</td><td class="r num">&lt; 115</td></tr>
+        <tr><td>Cholesterol całk.</td><td class="v num flag">230</td><td class="r num">&lt; 190</td></tr>
+        <tr><td>Triglicerydy</td><td class="v num flag">179</td><td class="r num">&lt; 150</td></tr>
+        <tr><td>HDL</td><td class="v num">43</td><td class="r num">&gt; 40</td></tr>
+        <tr><td>Glukoza na czczo</td><td class="v num flag">103</td><td class="r num">70–99</td></tr>
+      </tbody>
+    </table>
+    <div class="meta">mg/dl · 44 lata, 178 cm, 90 kg (BMI 28,4), pas 96 cm · tętno spocz. ok. 50</div>
+  </section>
+
+  <footer>To przypomnienie, nie porada lekarska.</footer>
+</main>
+
+<script>
+(function () {
+  var KEY = 'zdrowie-przypomnienie-v1';
+  var CONTROL = new Date(2027, 0, 23);
+  var WD = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+  // In-memory fallback; replaced by localStorage contents when available.
+  var state = { confirmations: {} };
+  var storageOk = false;
+  try {
+    var raw = window.localStorage.getItem(KEY);
+    storageOk = true;
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.confirmations === 'object') state = parsed;
+    }
+  } catch (e) { storageOk = false; }
+
+  function save() {
+    if (!storageOk) return;
+    try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { storageOk = false; showNoStore(); }
+  }
+  function showNoStore() { document.getElementById('nostore').hidden = storageOk; }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function addDays(d, n) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; }
+
+  var ack = document.getElementById('ack');
+  var renderedKey = null;
+
+  function render() {
+    var now = new Date();
+    var today = keyOf(now);
+    renderedKey = today;
+
+    document.getElementById('weekday').textContent = now.toLocaleDateString('pl-PL', { weekday: 'long' });
+    document.getElementById('fulldate').textContent = now.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    var days = Math.round((CONTROL - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    document.getElementById('countdown').textContent =
+      days > 0 ? 'za ' + days + ' dni' : days === 0 ? 'dziś' : (-days) + ' dni temu';
+
+    // Checkbox state is tied to today's date key, so it resets on a new day.
+    var stamp = state.confirmations[today];
+    ack.checked = !!stamp;
+    var stampEl = document.getElementById('stamp');
+    if (stamp) {
+      var t = new Date(stamp);
+      stampEl.textContent = 'Potwierdzono ' + t.toLocaleDateString('pl-PL') + ' o ' +
+        t.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+      stampEl.className = 'stamp done';
+    } else {
+      stampEl.textContent = 'Jeszcze nie potwierdzono.';
+      stampEl.className = 'stamp';
+    }
+
+    // Streak: consecutive confirmed days ending today, or yesterday if today is still open.
+    var streak = 0;
+    var cursor = state.confirmations[today] ? now : addDays(now, -1);
+    while (state.confirmations[keyOf(cursor)]) { streak++; cursor = addDays(cursor, -1); }
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('streakTxt').textContent =
+      (streak === 1 ? 'dzień z rzędu' : 'dni z rzędu') + (!state.confirmations[today] && streak > 0 ? ' · potwierdź dziś, by ją utrzymać' : '');
+
+    // 30-day calendar, aligned to Monday columns.
+    var cal = document.getElementById('cal');
+    cal.innerHTML = '';
+    WD.forEach(function (w) { var h = document.createElement('div'); h.className = 'wd'; h.textContent = w; cal.appendChild(h); });
+    var start = addDays(now, -29);
+    var lead = (start.getDay() + 6) % 7;
+    for (var i = 0; i < lead; i++) { var p = document.createElement('div'); p.className = 'd pad'; cal.appendChild(p); }
+    var count = 0;
+    for (var j = 0; j < 30; j++) {
+      var d = addDays(start, j), k = keyOf(d);
+      var c = document.createElement('div');
+      c.className = 'd num' + (state.confirmations[k] ? ' ok' : '') + (k === today ? ' today' : '');
+      c.textContent = d.getDate();
+      c.title = d.toLocaleDateString('pl-PL') + (state.confirmations[k] ? ' · potwierdzone' : ' · brak');
+      if (state.confirmations[k]) count++;
+      cal.appendChild(c);
+    }
+    document.getElementById('count30').textContent = count + '/30 dni';
+    showNoStore();
+  }
+
+  ack.addEventListener('change', function () {
+    var today = keyOf(new Date());
+    if (ack.checked) state.confirmations[today] = new Date().toISOString();
+    else delete state.confirmations[today];
+    save();
+    render();
+  });
+
+  // Re-render when the date rolls over while the page stays open.
+  function checkDay() { if (keyOf(new Date()) !== renderedKey) render(); }
+  setInterval(checkDay, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
+  window.addEventListener('focus', checkDay);
+
+  render();
+})();
+</script>
