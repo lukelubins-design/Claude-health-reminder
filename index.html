@@ -63,6 +63,10 @@ ul.plan .hint { color: var(--muted); font-size: 0.86rem; }
 .confirm input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .stamp { font-size: 0.86rem; color: var(--muted); padding-left: 34px; }
 .stamp.done { color: var(--accent); }
+.sync { font-size: 0.8rem; color: var(--muted); padding-left: 34px; display: flex; align-items: center; gap: 6px; }
+.sync i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync.on i { background: var(--accent); }
+.sync.off i { background: var(--warn); }
 .nostore { font-size: 0.84rem; color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 8px 10px; }
 
 .streak { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -136,6 +140,7 @@ footer { font-size: 0.8rem; color: var(--muted); text-align: center; border-top:
     <label for="ack"><input type="checkbox" id="ack"> Zapoznałem się z dzisiejszym przypomnieniem</label>
     <div class="stamp" id="stamp">Jeszcze nie potwierdzono.</div>
     <div class="nostore" id="nostore" hidden>Pamięć przeglądarki jest niedostępna. Dzisiejsze potwierdzenie działa, ale historia nie zostanie zapisana.</div>
+    <div class="sync" id="sync"><i></i><span id="syncTxt">Łączenie z kontem…</span></div>
   </div>
 
   <section>
@@ -249,13 +254,75 @@ footer { font-size: 0.8rem; color: var(--muted); text-align: center; border-top:
     showNoStore();
   }
 
+  // ---- Sync across devices: one private document per signed-in viewer. ----
+  var remoteRef = null;
+  var writeChain = Promise.resolve();
+  function setSync(cls, txt) {
+    var el = document.getElementById('sync');
+    el.className = 'sync ' + cls;
+    document.getElementById('syncTxt').textContent = txt;
+  }
+  function pushRemote() {
+    if (!remoteRef) return;
+    var body = { confirmations: Object.assign({}, state.confirmations) };
+    writeChain = writeChain.then(function () { return remoteRef.set(body); })
+      .then(function () { setSync('on', 'Zsynchronizowane z kontem: telefon i komputer'); })
+      .catch(function () { setSync('off', 'Nie udało się zapisać na koncie. Zapisano na tym urządzeniu.'); });
+  }
+
+  async function startSync() {
+    if (!window.claude || typeof window.claude.use !== 'function') {
+      setSync('off', 'Synchronizacja niedostępna. Historia tylko na tym urządzeniu.');
+      return;
+    }
+    var db = null, user = null;
+    try { db = await window.claude.use('db'); user = await window.claude.use('user'); } catch (e) {}
+    var uid = null;
+    try { uid = user ? await user.id() : null; } catch (e) {}
+    if (!db || !uid) {
+      setSync('off', 'Zaloguj się w Claude, aby synchronizować telefon i komputer.');
+      return;
+    }
+    try { remoteRef = db.doc('data/users/' + uid + '/history'); } catch (e) { remoteRef = null; return; }
+    var merged = false;
+    var timer = setTimeout(function () {
+      setSync('off', 'Konto chwilowo nieosiągalne. Pokazuję dane z tego urządzenia.');
+    }, 10000);
+    remoteRef.onSnapshot(function (snap) {
+      var remote = (snap.exists && snap.data() && snap.data().confirmations) || {};
+      if (!snap.metadata.fromCache) {
+        clearTimeout(timer);
+        if (!merged) {
+          merged = true;
+          // First confirmed read: fold in anything this device saved before syncing.
+          var missing = Object.keys(state.confirmations).some(function (k) { return !remote[k]; });
+          state.confirmations = Object.assign({}, state.confirmations, remote);
+          save(); render();
+          if (missing) pushRemote(); else setSync('on', 'Zsynchronizowane z kontem: telefon i komputer');
+          return;
+        }
+      }
+      if (!merged) return;
+      if (snap.metadata.hasPendingWrites) return;
+      state.confirmations = Object.assign({}, remote);
+      save(); render();
+    }, function () {
+      clearTimeout(timer);
+      remoteRef = null;
+      setSync('off', 'Synchronizacja przerwana. Historia tylko na tym urządzeniu.');
+    });
+  }
+
   ack.addEventListener('change', function () {
     var today = keyOf(new Date());
     if (ack.checked) state.confirmations[today] = new Date().toISOString();
     else delete state.confirmations[today];
     save();
     render();
+    pushRemote();
   });
+
+  startSync();
 
   // Re-render when the date rolls over while the page stays open.
   function checkDay() { if (keyOf(new Date()) !== renderedKey) render(); }
